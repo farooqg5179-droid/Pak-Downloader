@@ -1,0 +1,4 @@
+This is the source starter.
+Create a Flutter project named pak_downloader with `flutter create pak_downloader`,
+then replace pubspec.yaml, lib/main.dart and AndroidManifest.xml with the files
+from this package. Run `flutter pub get` before building.
