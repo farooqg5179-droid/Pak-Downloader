@@ -20,6 +20,11 @@ jobs:
       - name: Create Flutter project structure
         run: flutter create .
 
+      - name: Add internet permission to AndroidManifest
+        run: |
+          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>#' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Get dependencies
         run: flutter pub get
 
