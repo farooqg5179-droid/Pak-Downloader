@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -39,11 +40,10 @@ class _DownloaderHomeState extends State<DownloaderHome> {
   bool downloading = false;
   String status = '';
 
-  // Your Supabase project's Edge Function URL and anon key.
-  // Found in Supabase Dashboard > Project Settings > API.
   static const String extractorBaseUrl =
-      'https://YOUR-PROJECT-REF.supabase.co/functions/v1/extract';
-  static const String supabaseAnonKey = 'YOUR-SUPABASE-ANON-KEY';
+      'https://emkehfwntauhgmdsrcmw.supabase.co/functions/v1/extract';
+  static const String supabaseAnonKey =
+      'sb_publishable_hrN7MEBF52uf5-nJ6OKDnw_tpclR6Om';
 
   Future<void> downloadVideo() async {
     final url = controller.text.trim();
@@ -61,7 +61,6 @@ class _DownloaderHomeState extends State<DownloaderHome> {
     final permission = await Permission.storage.request();
     if (!permission.isGranted && Platform.isAndroid) {
       // On newer Android versions app-specific storage is normally enough.
-      // Keep going and use the app documents directory.
     }
 
     try {
@@ -71,8 +70,6 @@ class _DownloaderHomeState extends State<DownloaderHome> {
         status = 'Resolving video link...';
       });
 
-      // Step 1: ask the Supabase Edge Function to resolve the share
-      // link into a direct, downloadable video URL.
       final extractResponse = await dio.get(
         extractorBaseUrl,
         queryParameters: {'url': url},
@@ -93,15 +90,14 @@ class _DownloaderHomeState extends State<DownloaderHome> {
 
       setState(() => status = 'Downloading...');
 
-      // Step 2: download the resolved direct video URL as before.
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await getTemporaryDirectory();
       final fileName =
           'pak_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final path = '${dir.path}/$fileName';
+      final tempPath = '${dir.path}/$fileName';
 
       await dio.download(
         directUrl,
-        path,
+        tempPath,
         onReceiveProgress: (received, total) {
           if (total > 0) {
             setState(() => progress = received / total);
@@ -109,10 +105,27 @@ class _DownloaderHomeState extends State<DownloaderHome> {
         },
       );
 
+      setState(() => status = 'Saving to gallery...');
+
+      final hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess();
+        if (!granted) {
+          setState(() {
+            downloading = false;
+            status =
+                'Downloaded, but gallery permission was denied. Enable Photos/Media permission in app settings and try again.';
+          });
+          return;
+        }
+      }
+
+      await Gal.putVideo(tempPath, album: 'Pak Downloader');
+
       setState(() {
         downloading = false;
         progress = 1;
-        status = 'Download complete. Saved in the app folder.';
+        status = 'Download complete. Saved to your Gallery (Pak Downloader album).';
       });
     } catch (e) {
       setState(() {
@@ -188,4 +201,3 @@ class _DownloaderHomeState extends State<DownloaderHome> {
     );
   }
 }
-
