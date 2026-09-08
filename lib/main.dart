@@ -40,10 +40,10 @@ class _DownloaderHomeState extends State<DownloaderHome> {
   String status = '';
 
   // Your Supabase project's Edge Function URL and anon key.
+  // Found in Supabase Dashboard > Project Settings > API.
   static const String extractorBaseUrl =
-      'https://emkehfwntauhgmdsrcmw.supabase.co/functions/v1/extract';
-  static const String supabaseAnonKey =
-      'sb_publishable_hrN7MEBF52uf5-nJ6OKDnw_tpclR6Om';
+      'https://YOUR-PROJECT-REF.supabase.co/functions/v1/extract';
+  static const String supabaseAnonKey = 'YOUR-SUPABASE-ANON-KEY';
 
   Future<void> downloadVideo() async {
     final url = controller.text.trim();
@@ -61,6 +61,7 @@ class _DownloaderHomeState extends State<DownloaderHome> {
     final permission = await Permission.storage.request();
     if (!permission.isGranted && Platform.isAndroid) {
       // On newer Android versions app-specific storage is normally enough.
+      // Keep going and use the app documents directory.
     }
 
     try {
@@ -70,6 +71,8 @@ class _DownloaderHomeState extends State<DownloaderHome> {
         status = 'Resolving video link...';
       });
 
+      // Step 1: ask the Supabase Edge Function to resolve the share
+      // link into a direct, downloadable video URL.
       final extractResponse = await dio.get(
         extractorBaseUrl,
         queryParameters: {'url': url},
@@ -90,6 +93,7 @@ class _DownloaderHomeState extends State<DownloaderHome> {
 
       setState(() => status = 'Downloading...');
 
+      // Step 2: download the resolved direct video URL as before.
       final dir = await getApplicationDocumentsDirectory();
       final fileName =
           'pak_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
@@ -184,3 +188,4 @@ class _DownloaderHomeState extends State<DownloaderHome> {
     );
   }
 }
+
