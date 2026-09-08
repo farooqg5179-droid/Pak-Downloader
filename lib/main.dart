@@ -39,6 +39,12 @@ class _DownloaderHomeState extends State<DownloaderHome> {
   bool downloading = false;
   String status = '';
 
+  // Your Supabase project's Edge Function URL and anon key.
+  // Found in Supabase Dashboard > Project Settings > API.
+  static const String extractorBaseUrl =
+      'https://YOUR-PROJECT-REF.supabase.co/functions/v1/extract';
+  static const String supabaseAnonKey = 'YOUR-SUPABASE-ANON-KEY';
+
   Future<void> downloadVideo() async {
     final url = controller.text.trim();
 
@@ -47,9 +53,6 @@ class _DownloaderHomeState extends State<DownloaderHome> {
       return;
     }
 
-    // This starter app downloads direct video URLs that you are authorized
-    // to download. It does not bypass platform protections or remove
-    // TikTok/Facebook watermarks.
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       setState(() => status = 'URL must start with http:// or https://');
       return;
@@ -65,16 +68,39 @@ class _DownloaderHomeState extends State<DownloaderHome> {
       setState(() {
         downloading = true;
         progress = 0;
-        status = 'Downloading...';
+        status = 'Resolving video link...';
       });
 
+      // Step 1: ask the Supabase Edge Function to resolve the share
+      // link into a direct, downloadable video URL.
+      final extractResponse = await dio.get(
+        extractorBaseUrl,
+        queryParameters: {'url': url},
+        options: Options(headers: {
+          'Authorization': 'Bearer $supabaseAnonKey',
+          'apikey': supabaseAnonKey,
+        }),
+      );
+
+      final directUrl = extractResponse.data['video_url'] as String?;
+      if (directUrl == null || directUrl.isEmpty) {
+        setState(() {
+          downloading = false;
+          status = 'Could not resolve a video from this link.';
+        });
+        return;
+      }
+
+      setState(() => status = 'Downloading...');
+
+      // Step 2: download the resolved direct video URL as before.
       final dir = await getApplicationDocumentsDirectory();
       final fileName =
           'pak_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
       final path = '${dir.path}/$fileName';
 
       await dio.download(
-        url,
+        directUrl,
         path,
         onReceiveProgress: (received, total) {
           if (total > 0) {
@@ -91,7 +117,7 @@ class _DownloaderHomeState extends State<DownloaderHome> {
     } catch (e) {
       setState(() {
         downloading = false;
-        status = 'Download failed. Make sure this is a direct video URL.';
+        status = 'Download failed: ${e.toString()}';
       });
     }
   }
@@ -124,7 +150,7 @@ class _DownloaderHomeState extends State<DownloaderHome> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Paste a direct video URL to download an authorized video.',
+              'Paste a YouTube, Facebook, Instagram, or TikTok link to download.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 28),
