@@ -85,11 +85,26 @@ if url:
                 title = data.get("title") or "video"
 
             with st.spinner("Downloading video..."):
+                download_headers = {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    "Referer": "https://www.youtube.com/",
+                }
                 try:
-                    video_resp = requests.get(video_url, timeout=60)
+                    video_resp = requests.get(
+                        video_url, headers=download_headers, timeout=60
+                    )
                     video_resp.raise_for_status()
                 except Exception as e:
-                    st.error(f"Download failed: {e}")
+                    st.error(
+                        f"Download failed: {e}\n\n"
+                        "This can happen with some YouTube links whose direct "
+                        "URL expires or is IP-locked quickly. Try again, or "
+                        "try a different video."
+                    )
                     st.stop()
 
             st.success("Video ready!")
@@ -103,4 +118,3 @@ if url:
             )
 
 st.caption("For personal use. Please respect content creators' rights.")
-  
